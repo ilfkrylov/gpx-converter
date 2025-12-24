@@ -64,16 +64,16 @@ def main():
     
     # API ключ из переменных окружения
     api_key = os.environ.get("YANDEX_GEOCODER_API_KEY")
-    api_key_arg = f"--api_key {api_key}" if api_key else ""
     
     # Обрабатываем каждый URL
     success_count = 0
     for i, url in enumerate(urls, 1):
         logging.info(f"[{i}/{len(urls)}] Обработка: {url}")
         
-        # Формируем команду
+        # Формируем команду с флагом -u для unbuffered вывода
         cmd = [
             sys.executable,
+            "-u",
             str(main_script),
             url,
             output_dir,
@@ -81,24 +81,28 @@ def main():
         if api_key:
             cmd.extend(["--api_key", api_key])
         
-        # Запускаем
+        # Логируем команду для отладки
+        logging.debug(f"Запуск команды: {' '.join(cmd)}")
+        
+        # Запускаем с выводом в реальном времени
         try:
+            # Запускаем процесс, stdout и stderr идут напрямую в консоль
+            # но мы хотим получить код возврата
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                # Не перехватываем вывод, чтобы видеть логи основного скрипта
+                capture_output=False,
+                # Показываем вывод в консоли
                 text=True,
                 encoding='utf-8',
                 errors='ignore'
             )
+            # result будет содержать CompletedProcess даже при capture_output=False
             if result.returncode == 0:
                 logging.info(f"[{i}/{len(urls)}] Успешно обработан: {url}")
                 success_count += 1
             else:
-                logging.error(f"[{i}/{len(urls)}] Ошибка при обработке {url}:")
-                if result.stderr:
-                    for line in result.stderr.split('\n'):
-                        if line.strip():
-                            logging.error(f"  {line}")
+                logging.error(f"[{i}/{len(urls)}] Ошибка при обработке {url} (код возврата: {result.returncode})")
         except Exception as e:
             logging.error(f"[{i}/{len(urls)}] Исключение при запуске: {e}")
     
