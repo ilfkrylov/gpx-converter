@@ -18,6 +18,45 @@ def main():
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
+    # Загрузка конфигурации Osmand
+    config_path = "osmand_config.json"
+    osmand_config = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                osmand_config = json.load(f)
+            logging.info(f"Конфигурация Osmand загружена из {config_path}")
+        except Exception as e:
+            logging.warning(f"Не удалось загрузить конфигурацию Osmand: {e}. Будет использована конфигурация по умолчанию.")
+    else:
+        logging.warning(f"Файл конфигурации {config_path} не найден. Будет использована конфигурация по умолчанию.")
+    
+    # Функция для получения параметров группы
+    def get_group_params(group_name):
+        default_params = {
+            "color": "#FFFF00",
+            "icon": "special_marker",
+            "background": "circle"
+        }
+        # Если группа есть в конфиге, используем её параметры
+        if group_name in osmand_config:
+            group = osmand_config[group_name]
+            return {
+                "color": group.get("color", default_params["color"]),
+                "icon": group.get("icon", default_params["icon"]),
+                "background": group.get("background", default_params["background"])
+            }
+        # Иначе используем default
+        if "default" in osmand_config:
+            default_group = osmand_config["default"]
+            return {
+                "color": default_group.get("color", default_params["color"]),
+                "icon": default_group.get("icon", default_params["icon"]),
+                "background": default_group.get("background", default_params["background"])
+            }
+        # Если default нет в конфиге, используем встроенные значения по умолчанию
+        return default_params
+
     parser = argparse.ArgumentParser(
         description="""Консольная утилита для конвертации закладок Яндекс Карт в GPX."""
     )
@@ -163,6 +202,15 @@ def main():
     metadata_extensions = ET.SubElement(metadata, "extensions")
     ET.SubElement(metadata_extensions, "yandex:revision").text = str(list_rev)
     ET.SubElement(metadata_extensions, "yandex:publicId").text = list_publicid
+    
+    # Добавление блока osmand:points_groups
+    group_params = get_group_params(list_title)
+    points_groups = ET.SubElement(metadata_extensions, "osmand:points_groups")
+    group_elem = ET.SubElement(points_groups, "group")
+    group_elem.set("name", list_title)
+    group_elem.set("color", group_params["color"])
+    group_elem.set("icon", group_params["icon"])
+    group_elem.set("background", group_params["background"])
 
     for item in children:
         logging.debug(f"item: {item}")

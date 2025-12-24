@@ -1,0 +1,12 @@
+{
+  "default": {
+    "color": "#FFFF00",
+    "icon": "special_marker",
+    "background": "circle"
+  },
+  "example_group": {
+    "color": "#FF0000",
+    "icon": "custom_icon",
+    "background": "square"
+  }
+}
