@@ -23,6 +23,11 @@ def main():
         type=str,
         help="""API ключ для Яндекс Геокодера. Если не указан, будет использована переменная окружения YANDEX_GEOCODER_API_KEY.""",
     )
+    parser.add_argument(
+        "--include-revision",
+        action="store_true",
+        help="""Добавить к названию списка суффикс ' rev:<номер ревизии>'.""",
+    )
     args = parser.parse_args()
 
     headers = {
@@ -101,7 +106,8 @@ def main():
     list_author = bookmarks_list.get("author")
     children = bookmarks_list.get("children", [])
 
-    list_title += " rev:" + str(list_rev)
+    if args.include_revision:
+        list_title += " rev:" + str(list_rev)
 
     cleaned_list_title = list_title.replace(" ", "_").replace(":", "_")
     filename = os.path.join(output_dir, f"{cleaned_list_title}.gpx")

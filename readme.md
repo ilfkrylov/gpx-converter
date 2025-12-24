@@ -81,13 +81,15 @@ YANDEX_GEOCODER_API_KEY=ВАШ_API_КЛЮЧ
 вы его создавали):
 
 ```cmd
-python gpx_converter.py <URL_ИСТОЧНИКА_ДАННЫХ> <ПУТЬ_К_ПАПКЕ_ДЛЯ_СОХРАНЕНИЯ>
+python gpx_converter.py <URL_ИСТОЧНИКА_ДАННЫХ> <ПУТЬ_К_ПАПКЕ_ДЛЯ_СОХРАНЕНИЯ> [--api_key ВАШ_API_КЛЮЧ] [--include-revision]
 ```
 
 * `<URL_ИСТОЧНИКА_ДАННЫХ>`: URL, с которого утилита будет получать данные. Это может быть как веб-страница, так и
   локальный файл (например, `file:///C:/path/to/your/data.html`).
 * `<ПУТЬ_К_ПАПКЕ_ДЛЯ_СОХРАНЕНИЯ>`: Полный путь к папке, куда будет сохранен GPX файл. Убедитесь, что эта папка
   существует.
+* `--api_key`: Опциональный API ключ для Яндекс Геокодера. Если не указан, будет использована переменная окружения `YANDEX_GEOCODER_API_KEY`.
+* `--include-revision`: Опциональный флаг. Если указан, к названию списка закладок и к имени GPX файла будет добавлен суффикс ` rev:<номер ревизии>`. Без флага используется только исходное название.
 
 ### Как получить URL веб страницы?
 
@@ -114,8 +116,14 @@ python gpx_converter.py file:///C:/Users/YourUser/Documents/my_bookmarks.html C:
 python gpx_converter.py file:///C:/Users/YourUser/Documents/my_bookmarks.html C:\Users\YourUser\Downloads\GPX_Files\ --api_key abcd12345efgh6789ijkl0123456789
 ```
 
+С флагом `--include-revision` имя файла будет содержать номер ревизии:
+
+```cmd
+python gpx_converter.py file:///C:/Users/YourUser/Documents/my_bookmarks.html C:\Users\YourUser\Downloads\GPX_Files\ --include-revision
+```
+
 После выполнения, в указанной папке будет создан GPX файл с именем, соответствующим названию списка закладок (
-например, `Тестовые_закладки.gpx`).
+например, `Тестовые_закладки.gpx`). Если использован флаг `--include-revision`, имя файла будет выглядеть как `Тестовые_закладки_rev_123.gpx`.
 
 ## Дополнительная информация
 
