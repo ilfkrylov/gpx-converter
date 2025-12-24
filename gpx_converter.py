@@ -5,11 +5,18 @@ import xml.etree.ElementTree as ET
 from urllib.parse import unquote, urlparse
 import os
 import re
+import logging
 from dotenv import load_dotenv
 
 
 def main():
     load_dotenv()
+    # Настройка логирования
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     parser = argparse.ArgumentParser(
         description="""Консольная утилита для конвертации закладок Яндекс Карт в GPX."""
@@ -50,10 +57,10 @@ def main():
     api_key = args.api_key or os.environ.get("YANDEX_GEOCODER_API_KEY")
 
     if not os.path.isdir(output_dir):
-        print(f"""Ошибка: Указанная папка \'{output_dir}\' не существует.""")
+        logging.error(f"Указанная папка '{output_dir}' не существует.")
         return
 
-    print(f"""Получение данных с URL: {url}""")
+    logging.info(f"Получение данных с URL: {url}")
     data = ""
     parsed_url = urlparse(url)
     if parsed_url.scheme == "file":
@@ -63,7 +70,7 @@ def main():
             with open(path, "r", encoding="utf-8") as f:
                 data = f.read()
         except IOError as e:
-            print(f"""Ошибка при чтении локального файла {path}: {e}""")
+            logging.error(f"Ошибка при чтении локального файла {path}: {e}")
             return
     else:
         try:
@@ -71,7 +78,7 @@ def main():
             response.raise_for_status()  # Проверка на ошибки HTTP
             data = response.text
         except requests.exceptions.RequestException as e:
-            print(f"""Ошибка при получении данных: {e}""")
+            logging.error(f"Ошибка при получении данных: {e}")
             return
 
     # Регулярное выражение для извлечения текста между <script> и </script>
@@ -82,21 +89,19 @@ def main():
     if match:
         script_content = match.group(1)
     else:
-        print("Скрипт не найден.")
+        logging.warning("Скрипт не найден.")
 
     data_json = json.loads(script_content)
 
     # print(f"script_content: {script_content}")
 
     if not data_json:
-        print(
-            """Ошибка: Не удалось найти или распарсить JSON с \'bookmarksPublicList\' в ответе."""
-        )
+        logging.error("Не удалось найти или распарсить JSON с 'bookmarksPublicList' в ответе.")
         return
 
     bookmarks_list = data_json.get("config").get("bookmarksPublicList")
     if not bookmarks_list:
-        print("""Ошибка: Ключ \'bookmarksPublicList\' не найден в JSON.""")
+        logging.error("Ключ 'bookmarksPublicList' не найден в JSON.")
         return
 
     list_rev = bookmarks_list.get("revision", -1)
@@ -111,10 +116,10 @@ def main():
 
     cleaned_list_title = list_title.replace(" ", "_").replace(":", "_")
     filename = os.path.join(output_dir, f"{cleaned_list_title}.gpx")
-    print(f"filename: {filename}")
+    logging.info(f"filename: {filename}")
 
     if not children:
-        print("""Нет точек для сохранения.""")
+        logging.warning("Нет точек для сохранения.")
         return
 
     ns = {
@@ -160,7 +165,7 @@ def main():
     ET.SubElement(metadata_extensions, "yandex:publicId").text = list_publicid
 
     for item in children:
-        print(f"item: {item}")
+        logging.debug(f"item: {item}")
         uri = item.get("uri")
         title = item.get("title", "Без названия")
         description = item.get("description", "")
@@ -179,7 +184,7 @@ def main():
                 continue
 
         if found:
-            print(f"SKIP {item}")
+            logging.debug(f"SKIP {item}")
             continue
 
         lat, lon = None, None
@@ -190,20 +195,18 @@ def main():
             lon, lat = map(float, coords_str.split(","))
         elif uri and "ymapsbm1://org?oid=" in uri:
             if not api_key:
-                print(
-                    """Предупреждение: API ключ для Яндекс Геокодера не установлен. Невозможно получить координаты для org?oid."""
-                )
+                logging.warning("API ключ для Яндекс Геокодера не установлен. Невозможно получить координаты для org?oid.")
                 continue
 
             geocoder_url = f"https://geocode-maps.yandex.ru/v1/?apikey={api_key}&uri={
                 uri
             }&format=json&language=ru_RU"
             try:
-                print("Получение данных объекта из геокодера: " + geocoder_url)
+                logging.info("Получение данных объекта из геокодера: " + geocoder_url)
                 geo_response = requests.get(geocoder_url)
                 geo_response.raise_for_status()
                 geo_data = geo_response.json()
-                print(f"geo_data: {geo_data}")
+                logging.debug(f"geo_data: {geo_data}")
 
                 pos = geo_data["response"]["GeoObjectCollection"]["featureMember"][0][
                     "GeoObject"
@@ -216,13 +219,13 @@ def main():
                 address = full_address if full_address else address
 
             except requests.exceptions.RequestException as e:
-                print(f"""Ошибка при запросе к геокодеру для {uri}: {e}""")
-                if e.response.status_code == 403:
-                    print(f"\n\n\tFORBIDDEN ERROR {list_title}\n\n")
+                logging.error(f"Ошибка при запросе к геокодеру для {uri}: {e}")
+                if e.response and e.response.status_code == 403:
+                    logging.error(f"FORBIDDEN ERROR {list_title}")
                     break
                 continue
             except (KeyError, IndexError) as e:
-                print(f"""Ошибка парсинга ответа геокодера для {uri}: {e}""")
+                logging.error(f"Ошибка парсинга ответа геокодера для {uri}: {e}")
                 continue
 
         if lat is not None and lon is not None:
@@ -238,7 +241,7 @@ def main():
     ET.indent(tree, space="  ", level=0)  # Для красивого форматирования XML
 
     tree.write(filename, encoding="UTF-8", xml_declaration=True)
-    print(f"""GPX файл успешно сохранен: {filename}""")
+    logging.info(f"GPX файл успешно сохранен: {filename}")
 
 
 if __name__ == "__main__":
